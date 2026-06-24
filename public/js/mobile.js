@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let conn = null;
     let isConnected = false;
     let targetDesktopPeerId = '';
+    const DESKTOP_PEER_PREFIX = 'moboard-desktop';
+    const MOBILE_PEER_PREFIX = 'moboard-mobile';
     
     // Speech Recognition
     let recognition = null;
@@ -78,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        targetDesktopPeerId = `rk-desktop-${code}`;
+        targetDesktopPeerId = `${DESKTOP_PEER_PREFIX}-${code}`;
         connectToPC(targetDesktopPeerId);
     });
 
@@ -235,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const code = hashIP(ip);
                 console.log('[Mobile] IP detected. Matching Room Code:', code);
                 
-                targetDesktopPeerId = `rk-desktop-${code}`;
+                targetDesktopPeerId = `${DESKTOP_PEER_PREFIX}-${code}`;
                 // Attempt connection
                 connectToPC(targetDesktopPeerId, true); // true for silent background check
             })
@@ -265,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Initialize PeerJS for Mobile Client (with a random suffix ID)
-        const mobilePeerId = `rk-mobile-${Math.random().toString(36).substring(2, 7)}`;
+        const mobilePeerId = `${MOBILE_PEER_PREFIX}-${Math.random().toString(36).substring(2, 7)}`;
         
         if (peer) {
             peer.destroy();

@@ -1,0 +1,77 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v1.0.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build macOS DMG and publish GitHub Release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate JavaScript
+        run: npm test
+
+      - name: Build macOS app
+        run: npm run dist:mac
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tag="${{ steps.release.outputs.tag }}"
+          assets=(dist/*.dmg dist/*.blockmap)
+          if (( ${#assets[@]} == 0 )); then
+            echo "No release assets found in dist/." >&2
+            exit 1
+          fi
+          args=(
+            release create "$tag" "${assets[@]}"
+            --title "Moboard $tag"
+            --generate-notes
+            --target "$GITHUB_SHA"
+          )
+          previous_tag="$(git tag --sort=-creatordate | grep -v "^${tag}$" | head -n 1 || true)"
+          if [[ -n "$previous_tag" ]]; then
+            args+=(--notes-start-tag "$previous_tag")
+          fi
+          gh "${args[@]}"

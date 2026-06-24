@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Moboard keyboard icon">
+  <defs>
+    <linearGradient id="container" x1="132" y1="104" x2="884" y2="908" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E5F8EF"/>
+      <stop offset="1" stop-color="#C9EBDD"/>
+    </linearGradient>
+    <filter id="elevation" x="-12%" y="-12%" width="124%" height="132%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#163C33" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="244" fill="url(#container)"/>
+  <rect x="124" y="124" width="776" height="776" rx="196" fill="#F4FBF7" opacity="0.44"/>
+
+  <g filter="url(#elevation)">
+    <rect x="184" y="316" width="656" height="392" rx="78" fill="#123B34"/>
+
+    <g fill="#D9F2E7">
+      <rect x="252" y="392" width="84" height="64" rx="18"/>
+      <rect x="366" y="392" width="84" height="64" rx="18"/>
+      <rect x="480" y="392" width="84" height="64" rx="18"/>
+      <rect x="594" y="392" width="84" height="64" rx="18"/>
+      <rect x="708" y="392" width="64" height="64" rx="18"/>
+
+      <rect x="252" y="486" width="64" height="64" rx="18"/>
+      <rect x="346" y="486" width="84" height="64" rx="18"/>
+      <rect x="460" y="486" width="84" height="64" rx="18"/>
+      <rect x="574" y="486" width="84" height="64" rx="18"/>
+      <rect x="688" y="486" width="84" height="64" rx="18"/>
+
+      <rect x="252" y="580" width="104" height="64" rx="18"/>
+      <rect x="388" y="580" width="248" height="64" rx="22"/>
+      <rect x="668" y="580" width="104" height="64" rx="18"/>
+    </g>
+  </g>
+</svg>

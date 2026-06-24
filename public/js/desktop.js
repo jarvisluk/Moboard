@@ -19,12 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let peer = null;
     let peerId = '';
     let conn = null;
+    let permissionRequestInFlight = false;
 
     // Public hosted URL for mobile client (HTTPS secure context)
-    const DEFAULT_MOBILE_URL = 'https://remote-keyboard-dictation.pages.dev/mobile.html';
+    const DEFAULT_MOBILE_URL = 'https://moboard.pages.dev/mobile.html';
+    const MOBILE_URL_STORAGE_KEY = 'moboard_mobile_url';
+    const DESKTOP_PEER_PREFIX = 'moboard-desktop';
     
     // Load saved custom URL or default
-    let mobileUrl = localStorage.getItem('mobile_url') || DEFAULT_MOBILE_URL;
+    let mobileUrl = localStorage.getItem(MOBILE_URL_STORAGE_KEY) || DEFAULT_MOBILE_URL;
     if (settingMobileUrl) {
         settingMobileUrl.value = mobileUrl;
     }
@@ -49,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Test Injection Button
     btnTestInject.addEventListener('click', () => {
-        injectTextLocal('Remote Keyboard Test Injected Successfully! [Test]');
+        injectTextLocal('Moboard test paste completed successfully. [Test]');
     });
 
     // 5. Clear Log Button
@@ -71,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!val) {
                 val = DEFAULT_MOBILE_URL;
             }
-            localStorage.setItem('mobile_url', val);
+            localStorage.setItem(MOBILE_URL_STORAGE_KEY, val);
             
             // Regenerate QR code immediately
             const currentCode = txtRoomId.textContent;
@@ -93,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Hash public IP into a 6-character room code
                 const code = hashIP(ip);
-                peerId = `rk-desktop-${code}`;
+                peerId = `${DESKTOP_PEER_PREFIX}-${code}`;
                 txtRoomId.textContent = code;
                 
                 initializePeer(peerId, code);
@@ -101,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(err => {
                 console.error('[Desktop] Failed to fetch public IP, generating random room ID:', err);
                 const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                peerId = `rk-desktop-${randomCode}`;
+                peerId = `${DESKTOP_PEER_PREFIX}-${randomCode}`;
                 txtRoomId.textContent = randomCode;
                 initializePeer(peerId, randomCode);
             });
@@ -195,8 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generatePairingQRCode(code) {
         // Construct mobile URL with pairing arguments
-        const baseUrl = localStorage.getItem('mobile_url') || DEFAULT_MOBILE_URL;
-        const url = `${baseUrl}?peerId=rk-desktop-${code}&roomCode=${code}`;
+        const baseUrl = localStorage.getItem(MOBILE_URL_STORAGE_KEY) || DEFAULT_MOBILE_URL;
+        const url = `${baseUrl}?peerId=${DESKTOP_PEER_PREFIX}-${code}&roomCode=${code}`;
         console.log('[Desktop] Mobile URL:', url);
         
         qrcodeContainer.innerHTML = '';
@@ -220,19 +223,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Helper Functions ---
 
     function checkServerStatus() {
-        // Query the Node.js server to confirm it's alive
-        fetch('/inject', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: 'ping-test' })
-        })
+        // Query the local server without triggering paste automation.
+        fetch('/health')
         .then(res => res.json())
         .then(data => {
-            txtServerStatus.textContent = 'Active (Ready)';
-            txtServerStatus.style.color = '#34d399';
+            const accessibility = data.accessibility;
+            if (accessibility && accessibility.required && accessibility.trusted === false) {
+                txtServerStatus.textContent = 'Active (Needs Accessibility)';
+                txtServerStatus.style.color = '#fbbf24';
+            } else {
+                txtServerStatus.textContent = 'Active (Ready)';
+                txtServerStatus.style.color = '#34d399';
+            }
         })
         .catch(err => {
-            // Note: Since this is localhost, it'll fail with ping-test if the server is off
             txtServerStatus.textContent = 'Connecting to Local Server...';
             txtServerStatus.style.color = '#fbbf24';
             setTimeout(checkServerStatus, 3000);
@@ -250,12 +254,39 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             if (!data.success) {
                 showToast('Pasting failed: ' + (data.error || 'Unknown error'), 'error');
+
+                if (data.requiresAccessibility) {
+                    requestMacPermission('/accessibility/request');
+                } else if (data.requiresAutomation) {
+                    requestMacPermission('/automation/request');
+                }
             }
         })
         .catch(err => {
             console.error('[Desktop] Failed to call local server /inject API:', err);
             showToast('Local Node.js server unreachable', 'error');
         });
+    }
+
+    function requestMacPermission(endpoint) {
+        if (permissionRequestInFlight) {
+            return;
+        }
+
+        permissionRequestInFlight = true;
+        fetch(endpoint, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success && !data.settingsOpened) {
+                    showToast(data.message || 'Open macOS Privacy & Security settings to finish permission setup.', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('[Desktop] Failed to request macOS permission:', err);
+            })
+            .finally(() => {
+                permissionRequestInFlight = false;
+            });
     }
 
     function addLogItem(text) {
@@ -300,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.className = `toast toast-${type}`;
         toast.innerHTML = `
             <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
-            <span>${message}</span>
+            <span>${escapeHTML(message)}</span>
         `;
         container.appendChild(toast);
         lucide.createIcons();
@@ -314,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function escapeHTML(str) {
-        return str.replace(/[&<>'"]/g, 
+        return String(str).replace(/[&<>'"]/g,
             tag => ({
                 '&': '&amp;',
                 '<': '&lt;',

@@ -8,16 +8,18 @@ echo ""
 echo "This script will deploy the static 'public' directory."
 echo "If this is your first time, Wrangler will open a browser"
 echo "window to authenticate your Cloudflare account."
+echo "If the project does not exist yet, run:"
+echo "  npm run deploy:cloudflare:create"
 echo ""
 
 # Run Wrangler Pages deploy command
-# It uses the 'public' folder and deploys to a project named 'remote-keyboard-dictation'
-npx wrangler pages deploy public --project-name remote-keyboard-dictation
+# It uses the 'public' folder and deploys to the Moboard Pages project.
+npx wrangler pages deploy public --project-name moboard
 
 echo ""
 echo "========================================================="
 echo "Deployment command completed."
 echo "1. Copy the secure HTTPS URL provided above by Cloudflare."
-echo "2. Open the Remote Keyboard Electron App."
+echo "2. Open the Moboard Electron App."
 echo "3. Paste the URL into settings (append /mobile.html)."
 echo "========================================================="

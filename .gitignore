@@ -2,3 +2,15 @@ node_modules/
 .DS_Store
 *.log
 ssl/
+
+# Build output
+dist/
+build/
+out/
+release/
+*.dmg
+*.zip
+*.blockmap
+
+# Local tool state
+.wrangler/

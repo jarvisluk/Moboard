@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 const os = require('os');
 
@@ -21,10 +21,181 @@ process.on('uncaughtException', (err) => {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const APP_NAME = 'Moboard';
+const ACCESSIBILITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
+const AUTOMATION_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation';
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+function getElectronApi() {
+    if (!process.versions || !process.versions.electron) {
+        return null;
+    }
+
+    try {
+        const electron = require('electron');
+        return electron && typeof electron === 'object' ? electron : null;
+    } catch (err) {
+        console.warn('[Permissions] Electron API unavailable:', err.message || err);
+        return null;
+    }
+}
+
+function getAppName() {
+    const electron = getElectronApi();
+    if (electron && electron.app && typeof electron.app.getName === 'function') {
+        try {
+            return electron.app.getName() || APP_NAME;
+        } catch (err) {
+            console.warn('[Permissions] Failed to read Electron app name:', err.message || err);
+        }
+    }
+
+    return APP_NAME;
+}
+
+function getMacAccessibilityStatus(prompt = false) {
+    const platform = os.platform();
+    const baseStatus = {
+        platform,
+        required: platform === 'darwin',
+        supported: false,
+        trusted: platform !== 'darwin',
+        canPrompt: false,
+        appName: getAppName()
+    };
+
+    if (platform !== 'darwin') {
+        return baseStatus;
+    }
+
+    const electron = getElectronApi();
+    if (!electron || !electron.systemPreferences || typeof electron.systemPreferences.isTrustedAccessibilityClient !== 'function') {
+        return {
+            ...baseStatus,
+            trusted: null,
+            message: 'Accessibility status is only available inside the Electron desktop app.'
+        };
+    }
+
+    try {
+        return {
+            ...baseStatus,
+            supported: true,
+            canPrompt: true,
+            trusted: electron.systemPreferences.isTrustedAccessibilityClient(prompt)
+        };
+    } catch (err) {
+        return {
+            ...baseStatus,
+            trusted: null,
+            error: err.message || String(err)
+        };
+    }
+}
+
+function openMacSettings(url) {
+    const electron = getElectronApi();
+    if (electron && electron.shell && typeof electron.shell.openExternal === 'function') {
+        return electron.shell.openExternal(url)
+            .then(() => ({ opened: true }))
+            .catch((err) => ({ opened: false, error: err.message || String(err) }));
+    }
+
+    return new Promise((resolve) => {
+        execFile('/usr/bin/open', [url], (err) => {
+            resolve(err ? { opened: false, error: err.message || String(err) } : { opened: true });
+        });
+    });
+}
+
+function macAccessibilityPermissionMessage() {
+    const appName = getAppName();
+    return `macOS Accessibility permission required. Enable "${appName}" in System Settings -> Privacy & Security -> Accessibility, then restart the app. If you launched with npm start, macOS may list Terminal, your shell app, or Electron instead. (Text has been copied to your clipboard; you can manually paste it using Cmd+V)`;
+}
+
+function macAutomationPermissionMessage() {
+    const appName = getAppName();
+    return `macOS Automation permission required. Enable "${appName}" to control System Events in System Settings -> Privacy & Security -> Automation, then try again. (Text has been copied to your clipboard; you can manually paste it using Cmd+V)`;
+}
+
+function classifyMacPasteError(err) {
+    const message = err && (err.message || String(err));
+    if (!message) {
+        return 'unknown';
+    }
+
+    if (
+        message.includes('Not authorized to send Apple events') ||
+        message.includes('not authorized to send apple events') ||
+        message.includes('-1743')
+    ) {
+        return 'automation';
+    }
+
+    if (
+        message.includes('not allowed to send keystrokes') ||
+        message.includes('assistive access') ||
+        message.includes('System Events got an error')
+    ) {
+        return 'accessibility';
+    }
+
+    return 'unknown';
+}
+
+app.get('/health', (req, res) => {
+    res.json({
+        success: true,
+        platform: os.platform(),
+        port: global.SERVER_PORT || PORT,
+        accessibility: getMacAccessibilityStatus(false)
+    });
+});
+
+app.get('/accessibility/status', (req, res) => {
+    res.json({
+        success: true,
+        accessibility: getMacAccessibilityStatus(false)
+    });
+});
+
+app.post('/accessibility/request', async (req, res) => {
+    let accessibility = getMacAccessibilityStatus(false);
+
+    if (accessibility.required && accessibility.supported && accessibility.trusted === false) {
+        accessibility = getMacAccessibilityStatus(true);
+    }
+
+    const settingsResult = accessibility.required && accessibility.trusted !== true
+        ? await openMacSettings(ACCESSIBILITY_SETTINGS_URL)
+        : { opened: false };
+
+    res.json({
+        success: accessibility.trusted === true,
+        accessibility,
+        settingsOpened: settingsResult.opened,
+        error: settingsResult.error,
+        message: accessibility.trusted === true
+            ? 'Accessibility access is already granted.'
+            : macAccessibilityPermissionMessage()
+    });
+});
+
+app.post('/automation/request', async (req, res) => {
+    const settingsResult = os.platform() === 'darwin'
+        ? await openMacSettings(AUTOMATION_SETTINGS_URL)
+        : { opened: false };
+
+    res.json({
+        success: settingsResult.opened,
+        settingsOpened: settingsResult.opened,
+        error: settingsResult.error,
+        message: macAutomationPermissionMessage()
+    });
+});
 
 // Text Injection Endpoint
 app.post('/inject', (req, res) => {
@@ -47,56 +218,125 @@ app.post('/inject', (req, res) => {
     }
 });
 
-// macOS Text Injection using pbcopy/pbpaste and AppleScript
+const MAC_UTF8_ENV = {
+    ...process.env,
+    LANG: 'en_US.UTF-8',
+    LC_ALL: 'en_US.UTF-8',
+    LC_CTYPE: 'UTF-8'
+};
+
+function getElectronClipboard() {
+    if (!process.versions || !process.versions.electron) {
+        return null;
+    }
+
+    try {
+        return require('electron').clipboard;
+    } catch (err) {
+        console.warn('[Mac Inject] Electron clipboard unavailable, falling back to pbcopy:', err.message || err);
+        return null;
+    }
+}
+
+function writeMacClipboardWithPbcopy(text, callback) {
+    let done = false;
+    const finish = (err) => {
+        if (done) return;
+        done = true;
+        callback(err);
+    };
+
+    const copyProc = execFile('/usr/bin/pbcopy', [], { env: MAC_UTF8_ENV }, finish);
+    copyProc.stdin.on('error', finish);
+    copyProc.stdin.end(Buffer.from(text, 'utf8'));
+}
+
+function pasteMacClipboard(res, restoreClipboard) {
+    const accessibility = getMacAccessibilityStatus(false);
+    if (accessibility.required && accessibility.supported && accessibility.trusted === false) {
+        return res.status(200).json({
+            success: false,
+            error: macAccessibilityPermissionMessage(),
+            code: 'mac_accessibility_missing',
+            copiedToClipboard: true,
+            requiresAccessibility: true,
+            accessibility
+        });
+    }
+
+    const appleScript = 'tell application "System Events" to keystroke "v" using command down';
+    execFile('/usr/bin/osascript', ['-e', appleScript], (pasteErr) => {
+        if (pasteErr) {
+            console.error('[Mac Inject] AppleScript paste failed:', pasteErr.message || pasteErr);
+
+            const failureType = classifyMacPasteError(pasteErr);
+            const errorMsg = failureType === 'accessibility'
+                ? macAccessibilityPermissionMessage()
+                : failureType === 'automation'
+                    ? macAutomationPermissionMessage()
+                    : 'Keystroke automation failed. (Text has been copied to your clipboard; you can manually paste it using Cmd+V)';
+
+            return res.status(200).json({
+                success: false,
+                error: errorMsg,
+                code: failureType === 'accessibility'
+                    ? 'mac_accessibility_missing'
+                    : failureType === 'automation'
+                        ? 'mac_automation_missing'
+                        : 'mac_paste_failed',
+                copiedToClipboard: true,
+                requiresAccessibility: failureType === 'accessibility',
+                requiresAutomation: failureType === 'automation'
+            });
+        }
+
+        // Respond immediately so the client UI remains responsive
+        res.json({ success: true });
+
+        // Restore the original clipboard content after a short delay
+        setTimeout(() => {
+            try {
+                restoreClipboard();
+            } catch (restoreErr) {
+                console.error('[Mac Inject] Clipboard restore failed:', restoreErr.message || restoreErr);
+            }
+        }, 250);
+    });
+}
+
+// macOS Text Injection using the Electron clipboard when packaged, with a UTF-8 pbcopy fallback
 function injectMac(text, res) {
+    const electronClipboard = getElectronClipboard();
+    if (electronClipboard) {
+        try {
+            const backupText = electronClipboard.readText();
+            electronClipboard.writeText(text);
+            pasteMacClipboard(res, () => electronClipboard.writeText(backupText));
+        } catch (err) {
+            console.error('[Mac Inject] Electron clipboard write failed:', err.message || err);
+            res.status(500).json({ success: false, error: 'Failed to write to clipboard' });
+        }
+        return;
+    }
+
     // 1. Read current clipboard content to back it up
-    exec('pbpaste', (err, oldClipboard) => {
+    execFile('/usr/bin/pbpaste', [], { encoding: 'utf8', env: MAC_UTF8_ENV }, (err, oldClipboard) => {
         const backupText = oldClipboard || '';
 
         // 2. Pipe the new text to pbcopy to set clipboard
-        const copyProc = exec('pbcopy', (copyErr) => {
+        writeMacClipboardWithPbcopy(text, (copyErr) => {
             if (copyErr) {
                 console.error('[Mac Inject] Copy failed:', copyErr);
                 return res.status(500).json({ success: false, error: 'Failed to write to clipboard' });
             }
 
             // 3. Trigger AppleScript to press Command+V (Paste)
-            const appleScript = `osascript -e 'tell application "System Events" to keystroke "v" using command down'`;
-            exec(appleScript, (pasteErr) => {
-                if (pasteErr) {
-                    console.error('[Mac Inject] AppleScript paste failed:', pasteErr.message || pasteErr);
-                    
-                    const isPermissionError = pasteErr.message && (
-                        pasteErr.message.includes('not allowed to send keystrokes') ||
-                        pasteErr.message.includes('System Events got an error')
-                    );
-                    
-                    const errorMsg = isPermissionError 
-                        ? 'macOS Accessibility permission required. Please grant permission to your Terminal or Node.js in System Settings -> Privacy & Security -> Accessibility. (Note: Text has been copied to your clipboard, you can manually paste it using Cmd+V)'
-                        : 'Keystroke automation failed. (Note: Text has been copied to your clipboard, you can manually paste it using Cmd+V)';
-                    
-                    return res.status(200).json({ 
-                        success: false, 
-                        error: errorMsg,
-                        copiedToClipboard: true
-                    });
+            pasteMacClipboard(res, () => writeMacClipboardWithPbcopy(backupText, (restoreErr) => {
+                if (restoreErr) {
+                    console.error('[Mac Inject] Clipboard restore failed:', restoreErr.message || restoreErr);
                 }
-
-                // Respond immediately so the client UI remains responsive
-                res.json({ success: true });
-
-                // 4. Restore the original clipboard content after a short delay
-                setTimeout(() => {
-                    const restoreProc = exec('pbcopy');
-                    restoreProc.stdin.write(backupText);
-                    restoreProc.stdin.end();
-                }, 250);
-            });
+            }));
         });
-
-        // Write the text to be pasted to pbcopy's stdin
-        copyProc.stdin.write(text);
-        copyProc.stdin.end();
     });
 }
 
@@ -158,7 +398,7 @@ function injectLinux(text, res) {
 function startServer(port) {
     const server = app.listen(port, () => {
         console.log(`=================================================`);
-        console.log(`Remote Keyboard Server running on port ${port}`);
+        console.log(`Moboard Server running on port ${port}`);
         console.log(`Open http://localhost:${port} in your computer browser`);
         console.log(`=================================================`);
 
