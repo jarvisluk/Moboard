@@ -23,11 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Public hosted URL for mobile client (HTTPS secure context)
     const DEFAULT_MOBILE_URL = 'https://moboard.pages.dev/';
+    const LEGACY_MOBILE_URL_PREFIXES = [
+        'https://remote-keyboard-dictation.pages.dev',
+        'https://moboard.pages.dev/mobile.html'
+    ];
     const MOBILE_URL_STORAGE_KEY = 'moboard_mobile_url';
     const DESKTOP_PEER_PREFIX = 'moboard-desktop';
     
     // Load saved custom URL or default
-    let mobileUrl = localStorage.getItem(MOBILE_URL_STORAGE_KEY) || DEFAULT_MOBILE_URL;
+    let mobileUrl = normalizeMobileUrl(localStorage.getItem(MOBILE_URL_STORAGE_KEY));
     if (settingMobileUrl) {
         settingMobileUrl.value = mobileUrl;
     }
@@ -74,7 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!val) {
                 val = DEFAULT_MOBILE_URL;
             }
+            val = normalizeMobileUrl(val);
             localStorage.setItem(MOBILE_URL_STORAGE_KEY, val);
+            settingMobileUrl.value = val;
             
             // Regenerate QR code immediately
             const currentCode = txtRoomId.textContent;
@@ -85,6 +91,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Core WebRTC Functions ---
+
+    function normalizeMobileUrl(value) {
+        const url = value || DEFAULT_MOBILE_URL;
+        if (LEGACY_MOBILE_URL_PREFIXES.some(prefix => url.startsWith(prefix))) {
+            localStorage.setItem(MOBILE_URL_STORAGE_KEY, DEFAULT_MOBILE_URL);
+            return DEFAULT_MOBILE_URL;
+        }
+        return url;
+    }
 
     function fetchPublicIPAndStart() {
         // Fetch public IP to generate auto-discovery Room ID
