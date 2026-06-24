@@ -182,7 +182,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         connection.on('data', (data) => {
             console.log('[Desktop] Data received:', data);
-            if (data && data.text) {
+            if (data && data.key) {
+                if (settingAutoPaste.checked) {
+                    pressKeyLocal(data.key);
+                } else {
+                    showToast('Key received (Auto-paste disabled)');
+                }
+            } else if (data && data.text) {
                 // Add to GUI log
                 addLogItem(data.text);
                 
@@ -295,6 +301,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (shouldShowSuccess) {
                 setTestPastePending(false);
             }
+        });
+    }
+
+    function pressKeyLocal(key) {
+        fetch('/key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                showToast('Key press failed: ' + (data.error || 'Unknown error'), 'error');
+
+                if (data.requiresAccessibility) {
+                    requestMacPermission('/accessibility/request');
+                } else if (data.requiresAutomation) {
+                    requestMacPermission('/automation/request');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('[Desktop] Failed to call local server /key API:', err);
+            showToast('Local Node.js server unreachable', 'error');
         });
     }
 

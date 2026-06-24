@@ -218,6 +218,27 @@ app.post('/inject', (req, res) => {
     }
 });
 
+// Key Press Endpoint
+app.post('/key', (req, res) => {
+    const { key } = req.body;
+    if (key !== 'Enter') {
+        return res.status(400).json({ success: false, error: 'Unsupported key' });
+    }
+
+    console.log(`[Key] Received key press: "${key}"`);
+
+    const platform = os.platform();
+    if (platform === 'darwin') {
+        pressMacKey(key, res);
+    } else if (platform === 'win32') {
+        pressWindowsKey(key, res);
+    } else if (platform === 'linux') {
+        pressLinuxKey(key, res);
+    } else {
+        res.status(500).json({ success: false, error: `Unsupported platform: ${platform}` });
+    }
+});
+
 const MAC_UTF8_ENV = {
     ...process.env,
     LANG: 'en_US.UTF-8',
@@ -304,6 +325,55 @@ function pasteMacClipboard(res, restoreClipboard) {
     });
 }
 
+function pressMacKey(key, res) {
+    const accessibility = getMacAccessibilityStatus(false);
+    if (accessibility.required && accessibility.supported && accessibility.trusted === false) {
+        return res.status(200).json({
+            success: false,
+            error: macAccessibilityPermissionMessage(),
+            code: 'mac_accessibility_missing',
+            requiresAccessibility: true,
+            accessibility
+        });
+    }
+
+    const keyCodes = {
+        Enter: 36
+    };
+    const keyCode = keyCodes[key];
+    if (!keyCode) {
+        return res.status(400).json({ success: false, error: 'Unsupported key' });
+    }
+
+    const appleScript = `tell application "System Events" to key code ${keyCode}`;
+    execFile('/usr/bin/osascript', ['-e', appleScript], (pressErr) => {
+        if (pressErr) {
+            console.error('[Mac Key] AppleScript key press failed:', pressErr.message || pressErr);
+
+            const failureType = classifyMacPasteError(pressErr);
+            const errorMsg = failureType === 'accessibility'
+                ? macAccessibilityPermissionMessage()
+                : failureType === 'automation'
+                    ? macAutomationPermissionMessage()
+                    : 'Keystroke automation failed.';
+
+            return res.status(200).json({
+                success: false,
+                error: errorMsg,
+                code: failureType === 'accessibility'
+                    ? 'mac_accessibility_missing'
+                    : failureType === 'automation'
+                        ? 'mac_automation_missing'
+                        : 'mac_key_failed',
+                requiresAccessibility: failureType === 'accessibility',
+                requiresAutomation: failureType === 'automation'
+            });
+        }
+
+        res.json({ success: true });
+    });
+}
+
 // macOS Text Injection using the Electron clipboard when packaged, with a UTF-8 pbcopy fallback
 function injectMac(text, res) {
     const electronClipboard = getElectronClipboard();
@@ -372,6 +442,26 @@ function injectWindows(text, res) {
     });
 }
 
+function pressWindowsKey(key, res) {
+    const sendKey = key === 'Enter' ? '{ENTER}' : '';
+    if (!sendKey) {
+        return res.status(400).json({ success: false, error: 'Unsupported key' });
+    }
+
+    const powershellCmd = `powershell -Command "
+        Add-Type -AssemblyName System.Windows.Forms;
+        [System.Windows.Forms.SendKeys]::SendWait('${sendKey}');
+    "`;
+
+    exec(powershellCmd, (err) => {
+        if (err) {
+            console.error('[Win Key] PowerShell command failed:', err);
+            return res.status(500).json({ success: false, error: 'PowerShell key simulation failed' });
+        }
+        res.json({ success: true });
+    });
+}
+
 // Linux Text Injection using xclip and xdotool
 function injectLinux(text, res) {
     const escapedText = text.replace(/"/g, '\\"');
@@ -390,6 +480,21 @@ function injectLinux(text, res) {
         if (err) {
             console.error('[Linux Inject] Linux inject command failed:', err);
             return res.status(500).json({ success: false, error: 'Linux xdotool paste failed' });
+        }
+        res.json({ success: true });
+    });
+}
+
+function pressLinuxKey(key, res) {
+    const xdotoolKey = key === 'Enter' ? 'Return' : '';
+    if (!xdotoolKey) {
+        return res.status(400).json({ success: false, error: 'Unsupported key' });
+    }
+
+    exec(`xdotool key ${xdotoolKey}`, (err) => {
+        if (err) {
+            console.error('[Linux Key] xdotool key failed:', err);
+            return res.status(500).json({ success: false, error: 'Linux xdotool key failed' });
         }
         res.json({ success: true });
     });

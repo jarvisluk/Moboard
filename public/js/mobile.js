@@ -372,18 +372,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function sendKeyOverWebRTC(keyToSend) {
+        if (conn && isConnected) {
+            conn.send({ key: keyToSend });
+        } else {
+            showToast('Not connected to PC', 'error');
+        }
+    }
+
     function handleEditorKeyDown(event) {
         if (event.key !== 'Enter' || event.shiftKey || isComposingText || event.isComposing) {
             return;
         }
 
         event.preventDefault();
-        sendEditorText();
+        sendEditorText({ sendEmptyAsEnter: true });
     }
 
-    function sendEditorText() {
+    function sendEditorText(options = {}) {
+        const { sendEmptyAsEnter = false } = options;
         const text = editor.value;
         if (!text.trim()) {
+            if (sendEmptyAsEnter) {
+                sendKeyOverWebRTC('Enter');
+                clearEditorBuffer();
+                return true;
+            }
+
             showToast('Please speak or type some text first', 'error');
             return false;
         }
