@@ -20,20 +20,23 @@ npm run deploy:cloudflare:create
 npm run deploy:cloudflare
 ```
 
-The project is configured as `moboard` in `wrangler.toml`, so the default mobile client URL is:
+The Cloudflare Pages project is named `moboard`, and it deploys only the mobile client. The current production URL is:
 
 ```text
-https://moboard.pages.dev/mobile.html
+https://remote-keyboard-dictation.pages.dev/
 ```
 
-For GitHub Actions deployment, add these repository secrets:
+Cloudflare Pages is connected directly to the GitHub repository. Its build command should be:
 
 ```text
-CLOUDFLARE_ACCOUNT_ID
-CLOUDFLARE_API_TOKEN
+npm run build:mobile-pages
 ```
 
-`cloudflare-pages.yml` deploys `public/` to Cloudflare Pages on pushes to `main` and records the deployment in GitHub Deployments.
+and its build output directory should be:
+
+```text
+dist-pages
+```
 
 ## Desktop release
 

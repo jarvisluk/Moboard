@@ -6,11 +6,12 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "test": "node --check main.js && node --check server.js && node --check scripts/afterSign.js && node --check public/js/desktop.js && node --check public/js/mobile.js",
+    "test": "node --check main.js && node --check server.js && node --check scripts/afterSign.js && node --check scripts/build-mobile-pages.js && node --check public/js/desktop.js && node --check public/js/mobile.js",
+    "build:mobile-pages": "node scripts/build-mobile-pages.js",
     "dist": "electron-builder --mac",
     "dist:mac": "electron-builder --mac",
     "deploy:cloudflare:create": "wrangler pages project create moboard --production-branch=main",
-    "deploy:cloudflare": "wrangler pages deploy public --project-name=moboard",
+    "deploy:cloudflare": "npm run build:mobile-pages && wrangler pages deploy dist-pages --project-name=moboard",
     "release:tag": "bash scripts/release.sh"
   },
   "dependencies": {
