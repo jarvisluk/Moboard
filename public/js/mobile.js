@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastSentIndex = 0;
     let committedText = ''; // Only finalized (non-interim) text
     let isComposingText = false;
+    let recordingStoppedStatus = 'Recording stopped';
 
     // 1. Code Input Tab Automation
     setupCodeInputTabs();
@@ -102,8 +103,15 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.addEventListener('compositionend', () => {
         isComposingText = false;
     });
+    editor.addEventListener('focus', releaseSpeechRecognitionForTyping);
+    editor.addEventListener('beforeinput', releaseSpeechRecognitionForTyping);
     editor.addEventListener('input', updateCharCount);
     editor.addEventListener('keydown', handleEditorKeyDown);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            releaseSpeechRecognitionForTyping();
+        }
+    });
 
     // 7. Mic Toggle Button
     btnMic.addEventListener('click', toggleRecording);
@@ -447,19 +455,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.error === 'not-allowed') {
                 showToast('Microphone access denied', 'error');
                 stopRecording();
+            } else if (event.error === 'audio-capture') {
+                stopRecording({ abort: true, statusText: 'Microphone released' });
             }
         };
 
         recognition.onend = () => {
             // Auto restart if still recording (iOS/Chrome sometimes timeout)
             if (isRecording) {
-                recognition.start();
+                try {
+                    recognition.start();
+                } catch (err) {
+                    console.warn('[Speech Recognition] Restart failed:', err);
+                    stopRecording({ abort: true, statusText: 'Recording stopped' });
+                }
             } else {
-                btnMic.classList.remove('recording');
-                micIconWrapper.innerHTML = '<i data-lucide="mic"></i>';
-                lucide.createIcons();
-                recordStatus.textContent = 'Recording stopped';
-                recordStatus.className = 'record-status status-idle';
+                resetRecordingUi(recordingStoppedStatus);
             }
         };
     }
@@ -479,13 +490,38 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize committedText from existing editor content
         committedText = editor.value;
         recognition.lang = langSelect.value;
+        recordingStoppedStatus = 'Recording stopped';
         recognition.start();
     }
 
-    function stopRecording() {
+    function stopRecording(options = {}) {
         if (!recognition) return;
+        const { abort = false, statusText = 'Recording stopped' } = options;
         isRecording = false;
-        recognition.stop();
+        recordingStoppedStatus = statusText;
+        try {
+            if (abort && typeof recognition.abort === 'function') {
+                recognition.abort();
+            } else {
+                recognition.stop();
+            }
+        } catch (err) {
+            console.warn('[Speech Recognition] Stop failed:', err);
+        }
+        resetRecordingUi(statusText);
+    }
+
+    function releaseSpeechRecognitionForTyping() {
+        if (!isRecording) return;
+        stopRecording({ abort: true, statusText: 'Microphone released for typing' });
+    }
+
+    function resetRecordingUi(statusText) {
+        btnMic.classList.remove('recording');
+        micIconWrapper.innerHTML = '<i data-lucide="mic"></i>';
+        lucide.createIcons();
+        recordStatus.textContent = statusText;
+        recordStatus.className = 'record-status status-idle';
     }
 
     // --- Helper Functions ---
