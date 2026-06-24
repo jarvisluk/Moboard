@@ -15,6 +15,13 @@
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Lucide Icons Integration */
+.lucide {
+    display: inline-block;
+    stroke-width: 2px;
+    vertical-align: middle;
+}
+
 /* Reset and Core Styling */
 * {
     box-sizing: border-box;
@@ -22,15 +29,21 @@
     padding: 0;
 }
 
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Prevent page-level scrolling */
+}
+
 body {
     font-family: var(--font-sans);
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -38,11 +51,15 @@ body {
 .glass-container {
     width: 100%;
     max-width: 960px;
+    height: calc(100vh - 3rem); /* Fit within screen height */
+    max-height: 700px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 2rem;
+    padding: 1.5rem;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-header {
@@ -51,7 +68,7 @@ body {
     align-items: center;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 1.2rem;
-    margin-bottom: 1.8rem;
+    margin-bottom: 1.2rem;
 }
 
 .logo {
@@ -61,7 +78,16 @@ body {
 }
 
 .logo-icon {
-    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-purple);
+}
+
+.logo-icon svg {
+    width: 26px;
+    height: 26px;
+    stroke-width: 1.8px;
 }
 
 .logo-text h1 {
@@ -109,7 +135,9 @@ body {
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
-    gap: 1.8rem;
+    gap: 1.5rem;
+    flex: 1;
+    min-height: 0; /* Keep children height-constrained */
 }
 
 @media (max-width: 768px) {
@@ -130,9 +158,11 @@ body {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 1.5rem;
+    padding: 1.2rem;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 0; /* Keep card contained */
 }
 
 .card h2 {
@@ -151,12 +181,12 @@ body {
 /* QR Code & Pairing (Linear-style clean outline) */
 .qr-wrapper {
     background: #0b0c0e;
-    padding: 1rem;
+    padding: 0.8rem;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    margin: 0 auto 1.5rem;
-    width: 190px;
-    height: 190px;
+    margin: 0 auto 1rem;
+    width: 170px;
+    height: 170px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -266,16 +296,39 @@ body {
 }
 
 .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
     cursor: pointer;
-    font-size: 1rem;
     opacity: 0.7;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, color 0.15s;
+    color: var(--text-secondary);
 }
 
 .btn-icon:hover {
     opacity: 1;
+    color: var(--text-primary);
+}
+
+.btn-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.2px;
+}
+
+.btn-icon-inside {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.2rem;
+}
+
+.btn-icon-inside svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2px;
 }
 
 /* Dictation Log Feed (Clean List View) */
@@ -287,15 +340,14 @@ body {
 }
 
 .log-list {
-    flex-grow: 1;
-    min-height: 200px;
-    max-height: 300px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     background: rgba(0, 0, 0, 0.15);
     border-radius: 6px;
     border: 1px solid var(--border-color);
     padding: 0.8rem;
-    margin-bottom: 1.2rem;
+    margin-bottom: 1rem;
 }
 
 .log-empty {
@@ -310,8 +362,17 @@ body {
 }
 
 .empty-icon {
-    font-size: 1.8rem;
-    opacity: 0.4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.35;
+    color: var(--text-secondary);
+}
+
+.empty-icon svg {
+    width: 36px;
+    height: 36px;
+    stroke-width: 1.5px;
 }
 
 .log-item {
@@ -468,6 +529,13 @@ input:checked + .slider:before {
     border-left-color: #ef4444;
 }
 
+.toast svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    stroke-width: 2.2px;
+}
+
 /* Mobile Dictation UI Styles (Linear aesthetics on Phone) */
 .mobile-body {
     padding: 1rem;
@@ -582,6 +650,14 @@ input:checked + .slider:before {
 
 .btn-mic:active {
     transform: scale(0.95);
+}
+
+.btn-mic svg {
+    width: 28px;
+    height: 28px;
+    color: white;
+    stroke-width: 2px;
+    transition: transform 0.2s ease;
 }
 
 .btn-mic.recording {
