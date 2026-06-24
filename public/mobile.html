@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- jsQR for QR scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <!-- Lucide Icons -->
@@ -41,7 +43,13 @@
                     <input type="text" class="code-input-char" maxlength="1">
                 </div>
 
-                <button id="btn-pair" class="btn btn-primary" style="margin-top: 1rem;">Connect to PC</button>
+                <div class="pair-actions">
+                    <button id="btn-pair" class="btn btn-primary">Connect to PC</button>
+                    <button id="btn-scan-qr" class="btn btn-scan">
+                        <i data-lucide="scan-line"></i>
+                        Scan QR Code
+                    </button>
+                </div>
             </section>
 
             <!-- STEP 2: Dictation Screen (Visible when connected) -->
@@ -91,6 +99,26 @@
             </div>
         </footer>
 
+    </div>
+
+    <!-- QR Scanner Overlay -->
+    <div id="qr-scanner-overlay" class="qr-scanner-overlay" style="display: none;">
+        <div class="qr-scanner-header">
+            <span class="qr-scanner-title">Scan PC QR Code</span>
+            <button id="btn-close-scanner" class="btn-close-scanner"><i data-lucide="x"></i></button>
+        </div>
+        <div class="qr-scanner-body">
+            <video id="qr-video" class="qr-video" autoplay playsinline muted></video>
+            <canvas id="qr-canvas" style="display: none;"></canvas>
+            <div class="qr-guide-frame">
+                <div class="qr-corner qr-corner-tl"></div>
+                <div class="qr-corner qr-corner-tr"></div>
+                <div class="qr-corner qr-corner-bl"></div>
+                <div class="qr-corner qr-corner-br"></div>
+                <div class="qr-scan-line"></div>
+            </div>
+        </div>
+        <p class="qr-scanner-hint">Point your camera at the QR Code on the PC screen</p>
     </div>
 
     <!-- Alert / Toast Container -->

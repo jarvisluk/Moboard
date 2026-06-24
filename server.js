@@ -4,6 +4,21 @@ const { exec } = require('child_process');
 const path = require('path');
 const os = require('os');
 
+// Prevent EPIPE errors from crashing the app when stdout/stderr has no consumer (e.g. Electron without a terminal)
+if (process.stdout && process.stdout.on) {
+    process.stdout.on('error', (err) => { if (err.code !== 'EPIPE') throw err; });
+}
+if (process.stderr && process.stderr.on) {
+    process.stderr.on('error', (err) => { if (err.code !== 'EPIPE') throw err; });
+}
+// Catch any other uncaught exceptions to prevent the app from crashing
+process.on('uncaughtException', (err) => {
+    if (err.code !== 'EPIPE') {
+        // Re-throw non-EPIPE errors so they are not silently swallowed
+        throw err;
+    }
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -140,9 +155,28 @@ function injectLinux(text, res) {
     });
 }
 
-app.listen(PORT, () => {
-    console.log(`=================================================`);
-    console.log(`Remote Keyboard Server running on port ${PORT}`);
-    console.log(`Open http://localhost:${PORT} in your computer browser`);
-    console.log(`=================================================`);
-});
+function startServer(port) {
+    const server = app.listen(port, () => {
+        console.log(`=================================================`);
+        console.log(`Remote Keyboard Server running on port ${port}`);
+        console.log(`Open http://localhost:${port} in your computer browser`);
+        console.log(`=================================================`);
+
+        // Expose the actual port globally so other parts of the app can read it
+        global.SERVER_PORT = port;
+    });
+
+    server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.warn(`[Server] Port ${port} is already in use, trying ${port + 1}...`);
+            startServer(port + 1);
+        } else {
+            console.error('[Server] Failed to start:', err);
+            throw err;
+        }
+    });
+
+    return server;
+}
+
+startServer(PORT);

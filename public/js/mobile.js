@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Pairing Controls
     const codeInputs = document.querySelectorAll('.code-input-char');
     const btnPair = document.getElementById('btn-pair');
+    const btnScanQr = document.getElementById('btn-scan-qr');
+
+    // QR Scanner elements
+    const qrOverlay = document.getElementById('qr-scanner-overlay');
+    const qrVideo = document.getElementById('qr-video');
+    const qrCanvas = document.getElementById('qr-canvas');
+    const btnCloseScanner = document.getElementById('btn-close-scanner');
+    let qrStream = null;
+    let qrAnimFrame = null;
     
     // Dictation Controls
     const editor = document.getElementById('editor');
@@ -31,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let recognition = null;
     let isRecording = false;
     let lastSentIndex = 0;
+    let committedText = ''; // Only finalized (non-interim) text
 
     // 1. Code Input Tab Automation
     setupCodeInputTabs();
@@ -97,7 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7. Mic Toggle Button
     btnMic.addEventListener('click', toggleRecording);
 
-    // --- Pairing Screen Logic ---
+    // 8. QR Scanner Button
+    btnScanQr.addEventListener('click', openQrScanner);
+    btnCloseScanner.addEventListener('click', closeQrScanner);
+
 
     function setupCodeInputTabs() {
         codeInputs.forEach((input, index) => {
@@ -124,6 +137,94 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Auto-Discovery via Public IP ---
+
+    // --- QR Scanner Logic ---
+
+    async function openQrScanner() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showToast('Camera not supported on this browser', 'error');
+            return;
+        }
+
+        try {
+            qrStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } }
+            });
+            qrVideo.srcObject = qrStream;
+            qrOverlay.style.display = 'flex';
+            lucide.createIcons();
+            tickQrDecode();
+        } catch (err) {
+            console.error('[QR Scanner] Camera error:', err);
+            showToast('Camera access denied', 'error');
+        }
+    }
+
+    function closeQrScanner() {
+        if (qrAnimFrame) {
+            cancelAnimationFrame(qrAnimFrame);
+            qrAnimFrame = null;
+        }
+        if (qrStream) {
+            qrStream.getTracks().forEach(t => t.stop());
+            qrStream = null;
+        }
+        qrVideo.srcObject = null;
+        qrOverlay.style.display = 'none';
+    }
+
+    function tickQrDecode() {
+        if (!qrStream) return;
+
+        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+            const ctx = qrCanvas.getContext('2d');
+            qrCanvas.width = qrVideo.videoWidth;
+            qrCanvas.height = qrVideo.videoHeight;
+            ctx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
+            const imageData = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+
+            if (code && code.data) {
+                handleQrResult(code.data);
+                return; // stop looping after successful scan
+            }
+        }
+
+        qrAnimFrame = requestAnimationFrame(tickQrDecode);
+    }
+
+    function handleQrResult(data) {
+        console.log('[QR Scanner] Decoded:', data);
+        closeQrScanner();
+
+        try {
+            const url = new URL(data);
+            const peerId = url.searchParams.get('peerId');
+            const roomCode = url.searchParams.get('roomCode');
+
+            if (!peerId) {
+                showToast('Invalid QR code', 'error');
+                return;
+            }
+
+            // Auto-fill inputs for visual confirmation
+            if (roomCode && roomCode.length === 6) {
+                for (let i = 0; i < 6; i++) {
+                    codeInputs[i].value = roomCode[i];
+                }
+            }
+
+            showToast('QR Code scanned! Connecting...');
+            targetDesktopPeerId = peerId;
+            connectToPC(peerId);
+
+        } catch (e) {
+            showToast('Invalid QR code format', 'error');
+        }
+    }
+
 
     function autoDiscoverPC() {
         updateBadgeStatus('connecting', 'Locating PC...');
@@ -288,13 +389,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         recognition.onresult = (event) => {
             let interimTranscript = '';
-            let finalTranscript = '';
             
             // Loop through speech recognition results
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += transcript;
+                    // Append to committed text (the source of truth)
+                    committedText += transcript;
                     
                     // Stream in real-time if Auto-Send is on
                     if (settingAutoSend.checked && i >= lastSentIndex) {
@@ -306,22 +407,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Append final transcripts and show interim results in editor
-            if (finalTranscript) {
-                editor.value += finalTranscript;
-            }
-            
-            // Temporarily append interim results to textarea for feedback, without saving them
-            const baseText = editor.value;
-            if (interimTranscript) {
-                editor.value = baseText + interimTranscript;
-            }
-            
-            // Reset back to base text if no interim results are pending
-            if (!interimTranscript && finalTranscript) {
-                editor.value = baseText;
-            }
-            
+            // Always display: committed (finalized) text + interim preview
+            // This prevents interim text from being baked into editor.value
+            editor.value = committedText + interimTranscript;
             updateCharCount();
         };
 
@@ -359,7 +447,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startRecording() {
         if (!recognition) return;
-        editor.focus();
+        // Initialize committedText from existing editor content
+        committedText = editor.value;
         recognition.lang = langSelect.value;
         recognition.start();
     }
