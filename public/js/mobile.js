@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isComposingText = false;
     });
     editor.addEventListener('focus', releaseSpeechRecognitionForTyping);
-    editor.addEventListener('beforeinput', releaseSpeechRecognitionForTyping);
+    editor.addEventListener('beforeinput', handleEditorBeforeInput);
     editor.addEventListener('input', updateCharCount);
     editor.addEventListener('keydown', handleEditorKeyDown);
     document.addEventListener('visibilitychange', () => {
@@ -382,6 +382,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleEditorKeyDown(event) {
         if (event.key !== 'Enter' || event.shiftKey || isComposingText || event.isComposing) {
+            return;
+        }
+
+        event.preventDefault();
+        sendEditorText({ sendEmptyAsEnter: true });
+    }
+
+    function handleEditorBeforeInput(event) {
+        releaseSpeechRecognitionForTyping();
+
+        if (event.inputType !== 'insertLineBreak' || isComposingText || event.isComposing) {
             return;
         }
 
