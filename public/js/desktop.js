@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let conn = null;
 
     // Public hosted URL for mobile client (HTTPS secure context)
-    const DEFAULT_MOBILE_URL = 'https://remote-dictation.vercel.app/mobile.html';
+    const DEFAULT_MOBILE_URL = 'https://remote-keyboard-dictation.pages.dev/mobile.html';
     
     // Load saved custom URL or default
     let mobileUrl = localStorage.getItem('mobile_url') || DEFAULT_MOBILE_URL;
