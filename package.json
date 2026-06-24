@@ -1,6 +1,6 @@
 {
   "name": "moboard",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Moboard is a cross-device voice dictation keyboard that lets you type on your computer using your mobile phone's voice recognition.",
   "main": "main.js",
   "scripts": {
