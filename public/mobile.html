@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Remote Keyboard - Mobile Client</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body class="mobile-body">
+    <div class="mobile-container">
+        
+        <!-- Header -->
+        <header class="mobile-header">
+            <h1>Remote Mic</h1>
+            <div id="mobile-badge" class="badge badge-disconnected">Offline</div>
+        </header>
+
+        <!-- Main Content Area (Dynamic depending on pairing state) -->
+        <main id="main-content" style="flex-grow: 1; display: flex; flex-direction: column;">
+            
+            <!-- STEP 1: Pairing Screen (Visible if not paired) -->
+            <section id="pair-screen" class="pair-card" style="display: none;">
+                <h2>Enter PC Room Code</h2>
+                <p class="section-desc">Look at the Control Panel on your computer and enter the 6-character code below.</p>
+                
+                <div class="input-code-row">
+                    <input type="text" class="code-input-char" maxlength="1" autofocus>
+                    <input type="text" class="code-input-char" maxlength="1">
+                    <input type="text" class="code-input-char" maxlength="1">
+                    <input type="text" class="code-input-char" maxlength="1">
+                    <input type="text" class="code-input-char" maxlength="1">
+                    <input type="text" class="code-input-char" maxlength="1">
+                </div>
+
+                <button id="btn-pair" class="btn btn-primary" style="margin-top: 1rem;">Connect to PC</button>
+            </section>
+
+            <!-- STEP 2: Dictation Screen (Visible when connected) -->
+            <section id="dictation-screen" class="editor-card" style="display: none; flex-grow: 1;">
+                <textarea id="editor" class="editor-textarea" placeholder="Tap the microphone and start speaking..."></textarea>
+                
+                <div class="editor-footer">
+                    <span id="char-count">0 characters</span>
+                    <button id="btn-clear-editor" class="btn btn-tertiary btn-small" style="padding: 0.2rem 0.5rem;">Clear Text</button>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Microphone & Action Card (Only visible when connected) -->
+        <footer id="bottom-controls" class="record-card" style="display: none;">
+            <div class="mic-section">
+                <button id="btn-mic" class="btn-mic">
+                    <span id="mic-icon">🎤</span>
+                </button>
+                <div class="ripple-ring ripple-ring-1"></div>
+                <div class="ripple-ring ripple-ring-2"></div>
+                <div class="ripple-ring ripple-ring-3"></div>
+            </div>
+            
+            <div id="record-status" class="record-status status-idle">Ready to record</div>
+
+            <div class="setting-item" style="width: 100%; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 1rem; margin-bottom: 0.5rem;">
+                <div class="setting-info">
+                    <span class="setting-title">Auto-Send on Speak</span>
+                    <span class="setting-desc">Stream text in real-time as you speak</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="setting-auto-send" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="mobile-actions">
+                <select id="lang-select" class="lang-selector">
+                    <option value="zh-CN">🇨🇳 Mandarin</option>
+                    <option value="en-US">🇺🇸 English</option>
+                    <option value="zh-HK">🇭🇰 Cantonese</option>
+                    <option value="ja-JP">🇯🇵 Japanese</option>
+                </select>
+                <button id="btn-send-text" class="btn btn-primary">Send to PC</button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Alert / Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- JS -->
+    <script src="js/mobile.js"></script>
+</body>
+</html>
