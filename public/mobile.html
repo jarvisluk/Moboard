@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="css/style.css">
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="mobile-body">
     <div class="mobile-container">
@@ -58,7 +60,7 @@
         <footer id="bottom-controls" class="record-card" style="display: none;">
             <div class="mic-section">
                 <button id="btn-mic" class="btn-mic">
-                    <span id="mic-icon">🎤</span>
+                    <span id="mic-icon-wrapper"><i data-lucide="mic"></i></span>
                 </button>
                 <div class="ripple-ring ripple-ring-1"></div>
                 <div class="ripple-ring ripple-ring-2"></div>
@@ -80,10 +82,10 @@
 
             <div class="mobile-actions">
                 <select id="lang-select" class="lang-selector">
-                    <option value="zh-CN">🇨🇳 Mandarin</option>
-                    <option value="en-US">🇺🇸 English</option>
-                    <option value="zh-HK">🇭🇰 Cantonese</option>
-                    <option value="ja-JP">🇯🇵 Japanese</option>
+                    <option value="zh-CN">Mandarin</option>
+                    <option value="en-US">English</option>
+                    <option value="zh-HK">Cantonese</option>
+                    <option value="ja-JP">Japanese</option>
                 </select>
                 <button id="btn-send-text" class="btn btn-primary">Send to PC</button>
             </div>

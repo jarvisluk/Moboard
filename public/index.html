@@ -13,13 +13,15 @@
     <!-- PeerJS & QRCode CDNs -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="desktop-body">
     <div class="glass-container">
         <!-- Header -->
         <header class="panel-header">
             <div class="logo">
-                <span class="logo-icon">🎙️</span>
+                <span class="logo-icon"><i data-lucide="mic"></i></span>
                 <div class="logo-text">
                     <h1>Remote Keyboard</h1>
                     <p>Cross-Device Voice Dictation Assistant</p>
@@ -47,7 +49,7 @@
                         <span class="detail-label">Pairing PIN / Room ID</span>
                         <div class="copy-box">
                             <span id="room-id" class="detail-value font-mono">------</span>
-                            <button id="btn-copy-room" class="btn-icon" title="Copy Room ID">📋</button>
+                            <button id="btn-copy-room" class="btn-icon" title="Copy Room ID"><i data-lucide="copy"></i></button>
                         </div>
                     </div>
                     <div class="detail-item">
@@ -58,7 +60,7 @@
 
                 <div class="actions">
                     <button id="btn-test-inject" class="btn btn-secondary">
-                        <span class="btn-icon-inside">⚡</span> Test Paste Automation
+                        <span class="btn-icon-inside"><i data-lucide="zap"></i></span> Test Paste Automation
                     </button>
                 </div>
             </section>
@@ -73,7 +75,7 @@
                 
                 <div id="log-list" class="log-list">
                     <div class="log-empty">
-                        <span class="empty-icon">💭</span>
+                        <span class="empty-icon"><i data-lucide="message-square"></i></span>
                         <p>No voice input received yet.<br>Connect your phone and start speaking!</p>
                     </div>
                 </div>

@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnClearEditor = document.getElementById('btn-clear-editor');
     
     const btnMic = document.getElementById('btn-mic');
-    const micIcon = document.getElementById('mic-icon');
+    const micIconWrapper = document.getElementById('mic-icon-wrapper');
     const recordStatus = document.getElementById('record-status');
     const settingAutoSend = document.getElementById('setting-auto-send');
     const langSelect = document.getElementById('lang-select');
@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Code Input Tab Automation
     setupCodeInputTabs();
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
 
     // 2. Parse URL parameters (check if QR code scanned)
     const urlParams = new URLSearchParams(window.location.search);
@@ -276,7 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.onstart = () => {
             isRecording = true;
             btnMic.classList.add('recording');
-            micIcon.textContent = '⏹️';
+            micIconWrapper.innerHTML = '<i data-lucide="square"></i>';
+            lucide.createIcons();
             recordStatus.textContent = 'Listening... Speak now';
             recordStatus.className = 'record-status status-listening';
             lastSentIndex = 0;
@@ -335,7 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 recognition.start();
             } else {
                 btnMic.classList.remove('recording');
-                micIcon.textContent = '🎤';
+                micIconWrapper.innerHTML = '<i data-lucide="mic"></i>';
+                lucide.createIcons();
                 recordStatus.textContent = 'Recording stopped';
                 recordStatus.className = 'record-status status-idle';
             }
@@ -400,10 +405,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.innerHTML = `
-            <span>${type === 'success' ? '✓' : '✗'}</span>
+            <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
             <span>${message}</span>
         `;
         container.appendChild(toast);
+        lucide.createIcons();
         
         setTimeout(() => {
             toast.style.opacity = '0';

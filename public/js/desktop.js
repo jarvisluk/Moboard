@@ -35,6 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Fetch Public IP and Initialize PeerJS
     fetchPublicIPAndStart();
 
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
     // 3. Copy Room ID Button
     btnCopyRoom.addEventListener('click', () => {
         const roomId = txtRoomId.textContent;
@@ -46,17 +49,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Test Injection Button
     btnTestInject.addEventListener('click', () => {
-        injectTextLocal('Remote Keyboard Test Injected Successfully! 🎙️✨');
+        injectTextLocal('Remote Keyboard Test Injected Successfully! [Test]');
     });
 
     // 5. Clear Log Button
     btnClearLog.addEventListener('click', () => {
         logList.innerHTML = `
             <div class="log-empty">
-                <span class="empty-icon">💭</span>
+                <span class="empty-icon"><i data-lucide="message-square"></i></span>
                 <p>No voice input received yet.<br>Connect your phone and start speaking!</p>
             </div>
         `;
+        lucide.createIcons();
         showToast('Logs cleared');
     });
 
@@ -295,10 +299,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.innerHTML = `
-            <span>${type === 'success' ? '✓' : '✗'}</span>
+            <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
             <span>${message}</span>
         `;
         container.appendChild(toast);
+        lucide.createIcons();
         
         setTimeout(() => {
             toast.style.opacity = '0';
