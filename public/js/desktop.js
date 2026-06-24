@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let permissionRequestInFlight = false;
 
     // Public hosted URL for mobile client (HTTPS secure context)
-    const DEFAULT_MOBILE_URL = 'https://remote-keyboard-dictation.pages.dev/';
+    const DEFAULT_MOBILE_URL = 'https://moboard.pages.dev/';
     const MOBILE_URL_STORAGE_KEY = 'moboard_mobile_url';
     const DESKTOP_PEER_PREFIX = 'moboard-desktop';
     

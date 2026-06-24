@@ -23,7 +23,7 @@ npm run deploy:cloudflare
 The Cloudflare Pages project is named `moboard`, and it deploys only the mobile client. The current production URL is:
 
 ```text
-https://remote-keyboard-dictation.pages.dev/
+https://moboard.pages.dev/
 ```
 
 Cloudflare Pages is connected directly to the GitHub repository. Its build command should be:
