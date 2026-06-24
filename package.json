@@ -2,14 +2,18 @@
   "name": "remote-keyboard",
   "version": "1.0.0",
   "description": "Cross-device voice dictation keyboard that lets you type on your computer using your mobile phone's voice recognition.",
-  "main": "server.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "electron .",
+    "server": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },
   "author": "Antigravity",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^42.5.0"
+  }
 }
