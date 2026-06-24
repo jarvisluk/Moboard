@@ -14,14 +14,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingAutoPaste = document.getElementById('setting-auto-paste');
     const settingSound = document.getElementById('setting-sound');
     const soundPaste = document.getElementById('sound-paste');
+    const settingMobileUrl = document.getElementById('setting-mobile-url');
 
     let peer = null;
     let peerId = '';
     let conn = null;
 
     // Public hosted URL for mobile client (HTTPS secure context)
-    // We can point to a standard Github Pages or Vercel static app
-    const MOBILE_APP_BASE_URL = 'https://remote-dictation.vercel.app/mobile.html';
+    const DEFAULT_MOBILE_URL = 'https://remote-dictation.vercel.app/mobile.html';
+    
+    // Load saved custom URL or default
+    let mobileUrl = localStorage.getItem('mobile_url') || DEFAULT_MOBILE_URL;
+    if (settingMobileUrl) {
+        settingMobileUrl.value = mobileUrl;
+    }
 
     // 1. Check Local Node.js Server Status
     checkServerStatus();
@@ -53,6 +59,23 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         showToast('Logs cleared');
     });
+
+    // 6. Mobile URL Change Listener
+    if (settingMobileUrl) {
+        settingMobileUrl.addEventListener('input', () => {
+            let val = settingMobileUrl.value.trim();
+            if (!val) {
+                val = DEFAULT_MOBILE_URL;
+            }
+            localStorage.setItem('mobile_url', val);
+            
+            // Regenerate QR code immediately
+            const currentCode = txtRoomId.textContent;
+            if (currentCode && currentCode !== '------') {
+                generatePairingQRCode(currentCode);
+            }
+        });
+    }
 
     // --- Core WebRTC Functions ---
 
@@ -168,8 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generatePairingQRCode(code) {
         // Construct mobile URL with pairing arguments
-        // This will point to our static mobile dictation app hosted over HTTPS
-        const url = `${MOBILE_APP_BASE_URL}?peerId=rk-desktop-${code}&roomCode=${code}`;
+        const baseUrl = localStorage.getItem('mobile_url') || DEFAULT_MOBILE_URL;
+        const url = `${baseUrl}?peerId=rk-desktop-${code}&roomCode=${code}`;
         console.log('[Desktop] Mobile URL:', url);
         
         qrcodeContainer.innerHTML = '';
