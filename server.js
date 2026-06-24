@@ -49,8 +49,22 @@ function injectMac(text, res) {
             const appleScript = `osascript -e 'tell application "System Events" to keystroke "v" using command down'`;
             exec(appleScript, (pasteErr) => {
                 if (pasteErr) {
-                    console.error('[Mac Inject] AppleScript paste failed:', pasteErr);
-                    return res.status(500).json({ success: false, error: 'Keystroke automation failed' });
+                    console.error('[Mac Inject] AppleScript paste failed:', pasteErr.message || pasteErr);
+                    
+                    const isPermissionError = pasteErr.message && (
+                        pasteErr.message.includes('not allowed to send keystrokes') ||
+                        pasteErr.message.includes('System Events got an error')
+                    );
+                    
+                    const errorMsg = isPermissionError 
+                        ? 'macOS Accessibility permission required. Please grant permission to your Terminal or Node.js in System Settings -> Privacy & Security -> Accessibility. (Note: Text has been copied to your clipboard, you can manually paste it using Cmd+V)'
+                        : 'Keystroke automation failed. (Note: Text has been copied to your clipboard, you can manually paste it using Cmd+V)';
+                    
+                    return res.status(200).json({ 
+                        success: false, 
+                        error: errorMsg,
+                        copiedToClipboard: true
+                    });
                 }
 
                 // Respond immediately so the client UI remains responsive
