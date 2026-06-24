@@ -56,7 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Test Injection Button
     btnTestInject.addEventListener('click', () => {
-        injectTextLocal('Moboard test paste completed successfully. [Test]');
+        injectTextLocal('Moboard test paste completed successfully. [Test]', {
+            successMessage: 'Paste automation test succeeded'
+        });
     });
 
     // 5. Clear Log Button
@@ -258,7 +260,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function injectTextLocal(text) {
+    function injectTextLocal(text, options = {}) {
+        const { successMessage = '' } = options;
+        const shouldShowSuccess = Boolean(successMessage);
+        if (shouldShowSuccess) {
+            setTestPastePending(true);
+        }
+
         // Send a POST request to the local Node.js server to paste the text
         fetch('/inject', {
             method: 'POST',
@@ -275,12 +283,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (data.requiresAutomation) {
                     requestMacPermission('/automation/request');
                 }
+            } else if (shouldShowSuccess) {
+                showToast(successMessage);
             }
         })
         .catch(err => {
             console.error('[Desktop] Failed to call local server /inject API:', err);
             showToast('Local Node.js server unreachable', 'error');
+        })
+        .finally(() => {
+            if (shouldShowSuccess) {
+                setTestPastePending(false);
+            }
         });
+    }
+
+    function setTestPastePending(isPending) {
+        btnTestInject.disabled = isPending;
+        btnTestInject.innerHTML = isPending
+            ? '<span class="btn-icon-inside"><i data-lucide="loader-circle"></i></span> Testing Paste...'
+            : '<span class="btn-icon-inside"><i data-lucide="zap"></i></span> Test Paste Automation';
+        lucide.createIcons();
     }
 
     function requestMacPermission(endpoint) {
