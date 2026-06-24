@@ -37,7 +37,7 @@ jobs:
         run: npm test
 
       - name: Build macOS app
-        run: npm run dist:mac
+        run: npm run dist:mac -- --publish never
 
       - name: Resolve release tag
         id: release
