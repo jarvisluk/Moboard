@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Keyboard - Control Panel</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- PeerJS & QRCode CDNs -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+</head>
+<body class="desktop-body">
+    <div class="glass-container">
+        <!-- Header -->
+        <header class="panel-header">
+            <div class="logo">
+                <span class="logo-icon">🎙️</span>
+                <div class="logo-text">
+                    <h1>Remote Keyboard</h1>
+                    <p>Cross-Device Voice Dictation Assistant</p>
+                </div>
+            </div>
+            <div id="connection-badge" class="badge badge-disconnected">Disconnected</div>
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Connection & QR Code -->
+            <section class="card connection-card">
+                <h2>Device Pairing</h2>
+                <p class="section-desc">Scan the QR code or enter the code on your phone to connect.</p>
+                
+                <div class="qr-wrapper">
+                    <div id="qrcode" class="qr-code">
+                        <div class="qr-loading">Generating QR Code...</div>
+                    </div>
+                </div>
+
+                <div class="pairing-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Pairing PIN / Room ID</span>
+                        <div class="copy-box">
+                            <span id="room-id" class="detail-value font-mono">------</span>
+                            <button id="btn-copy-room" class="btn-icon" title="Copy Room ID">📋</button>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Server Local Status</span>
+                        <span id="server-status" class="detail-value">Checking Node.js...</span>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="btn-test-inject" class="btn btn-secondary">
+                        <span class="btn-icon-inside">⚡</span> Test Paste Automation
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Log & Settings -->
+            <section class="card log-card">
+                <div class="card-header-row">
+                    <h2>Dictation Feed</h2>
+                    <button id="btn-clear-log" class="btn btn-tertiary btn-small">Clear Log</button>
+                </div>
+                <p class="section-desc">Real-time history of text received and pasted on your computer.</p>
+                
+                <div id="log-list" class="log-list">
+                    <div class="log-empty">
+                        <span class="empty-icon">💭</span>
+                        <p>No voice input received yet.<br>Connect your phone and start speaking!</p>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Pasting Preferences</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-title">Auto-Paste to Cursor</span>
+                            <span class="setting-desc">Automatically paste text into active input field</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-auto-paste" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <span class="setting-title">Play Paste Sound</span>
+                            <span class="setting-desc">Sound notification when text is received</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-sound" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Alert / Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Audio for paste notification -->
+    <audio id="sound-paste" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+
+    <!-- JS -->
+    <script src="js/desktop.js"></script>
+</body>
+</html>
