@@ -43,11 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRecording = false;
     let lastSentIndex = 0;
     let committedText = ''; // Only finalized (non-interim) text
-    let manualSentSnapshot = '';
-    let hasRealtimeTypedText = false;
     let isComposingText = false;
-    let editorClearTimer = null;
-    const EDITOR_CLEAR_DELAY_MS = 900;
 
     // 1. Code Input Tab Automation
     setupCodeInputTabs();
@@ -91,20 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Send Text Button
     btnSendText.addEventListener('click', () => {
-        const text = editor.value;
-        if (!text.trim()) {
-            showToast('Please speak or type some text first', 'error');
-            return;
-        }
-
-        if (hasRealtimeTypedText) {
-            flushManualEditorText();
-        } else {
-            sendTextOverWebRTC(text);
-        }
-
-        clearEditorBuffer();
-        showToast('Sent!');
+        sendEditorText();
     });
 
     // 5. Clear Editor Button
@@ -115,17 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. Character Count Listener
     editor.addEventListener('compositionstart', () => {
         isComposingText = true;
-        cancelEditorClear();
     });
     editor.addEventListener('compositionend', () => {
         isComposingText = false;
-        if (flushManualEditorText()) {
-            scheduleEditorClear();
-        }
     });
-    editor.addEventListener('input', handleEditorInput);
-    editor.addEventListener('change', finishEditorInput);
-    editor.addEventListener('blur', finishEditorInput);
+    editor.addEventListener('input', updateCharCount);
+    editor.addEventListener('keydown', handleEditorKeyDown);
 
     // 7. Mic Toggle Button
     btnMic.addEventListener('click', toggleRecording);
@@ -386,122 +364,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function sendRealtimeTypedText(textToSend) {
-        if (!textToSend || !conn || !isConnected) {
+    function handleEditorKeyDown(event) {
+        if (event.key !== 'Enter' || event.shiftKey || isComposingText || event.isComposing) {
+            return;
+        }
+
+        event.preventDefault();
+        sendEditorText();
+    }
+
+    function sendEditorText() {
+        const text = editor.value;
+        if (!text.trim()) {
+            showToast('Please speak or type some text first', 'error');
             return false;
         }
 
-        conn.send({ text: textToSend });
-        hasRealtimeTypedText = true;
+        sendTextOverWebRTC(text);
+        clearEditorBuffer();
+        showToast('Sent!');
         return true;
-    }
-
-    function handleEditorInput(event) {
-        updateCharCount();
-        cancelEditorClear();
-
-        if (isRecording || isComposingText || event.isComposing) {
-            return;
-        }
-
-        const inputType = event.inputType || '';
-        let sent = false;
-
-        if (editor.value === manualSentSnapshot) {
-            return;
-        }
-
-        if (inputType.startsWith('delete')) {
-            manualSentSnapshot = editor.value;
-        } else if (inputType.startsWith('insert') && event.data) {
-            sent = sendRealtimeTypedText(event.data);
-            if (sent) {
-                manualSentSnapshot = editor.value;
-            }
-        } else {
-            sent = flushManualEditorText(inputType);
-        }
-
-        if (sent) {
-            scheduleEditorClear();
-        }
-    }
-
-    function finishEditorInput() {
-        if (isRecording || isComposingText) {
-            return;
-        }
-
-        flushManualEditorText();
-        if (hasRealtimeTypedText) {
-            clearEditorBuffer();
-        }
-    }
-
-    function flushManualEditorText(inputType = '') {
-        if (inputType.startsWith('delete')) {
-            manualSentSnapshot = editor.value;
-            return false;
-        }
-
-        const currentText = editor.value;
-        if (currentText === manualSentSnapshot) {
-            return false;
-        }
-
-        let textToSend = '';
-        if (currentText.startsWith(manualSentSnapshot)) {
-            textToSend = currentText.slice(manualSentSnapshot.length);
-        } else if (!manualSentSnapshot) {
-            textToSend = currentText;
-        } else {
-            // Selection replacement/editing cannot be represented as a paste-only delta.
-            // Resync to avoid duplicating text that was already sent to the computer.
-            manualSentSnapshot = currentText;
-            return false;
-        }
-
-        if (!textToSend) {
-            manualSentSnapshot = currentText;
-            return false;
-        }
-
-        if (!sendRealtimeTypedText(textToSend)) {
-            return false;
-        }
-
-        manualSentSnapshot = currentText;
-        return true;
-    }
-
-    function scheduleEditorClear() {
-        if (isRecording) {
-            return;
-        }
-
-        cancelEditorClear();
-        editorClearTimer = setTimeout(() => {
-            if (!isRecording && !isComposingText) {
-                clearEditorBuffer();
-            }
-        }, EDITOR_CLEAR_DELAY_MS);
-    }
-
-    function cancelEditorClear() {
-        if (!editorClearTimer) {
-            return;
-        }
-
-        clearTimeout(editorClearTimer);
-        editorClearTimer = null;
     }
 
     function clearEditorBuffer() {
-        cancelEditorClear();
         editor.value = '';
         committedText = '';
-        manualSentSnapshot = '';
-        hasRealtimeTypedText = false;
         updateCharCount();
     }
 
@@ -552,7 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Always display: committed (finalized) text + interim preview
             // This prevents interim text from being baked into editor.value
             editor.value = committedText + interimTranscript;
-            manualSentSnapshot = editor.value;
             updateCharCount();
         };
 
@@ -590,10 +476,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startRecording() {
         if (!recognition) return;
-        cancelEditorClear();
         // Initialize committedText from existing editor content
         committedText = editor.value;
-        manualSentSnapshot = editor.value;
         recognition.lang = langSelect.value;
         recognition.start();
     }
