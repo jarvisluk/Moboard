@@ -2,13 +2,15 @@ const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
 const APP_NAME = 'Moboard';
+let mainWindow = null;
+let isQuitting = false;
 
 // 1. Boot up the local Express server inside the Electron app
 require('./server.js');
 
 function createWindow() {
     // 2. Create the browser window
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 960,
         height: 740,
         minWidth: 800,
@@ -19,7 +21,8 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: true
+            sandbox: true,
+            backgroundThrottling: false
         }
     });
 
@@ -60,8 +63,15 @@ function createWindow() {
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
 
+    mainWindow.on('close', (event) => {
+        if (process.platform === 'darwin' && !isQuitting) {
+            event.preventDefault();
+            mainWindow?.hide();
+        }
+    });
+
     mainWindow.on('closed', () => {
-        // Dereference window object
+        mainWindow = null;
     });
 }
 
@@ -71,10 +81,21 @@ app.whenReady().then(() => {
     createWindow();
 
     app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
+        if (!mainWindow || mainWindow.isDestroyed()) {
             createWindow();
+            return;
         }
+
+        if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+        }
+        mainWindow.show();
+        mainWindow.focus();
     });
+});
+
+app.on('before-quit', () => {
+    isQuitting = true;
 });
 
 app.on('window-all-closed', () => {

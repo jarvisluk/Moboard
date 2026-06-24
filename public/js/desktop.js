@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const qrcodeContainer = document.getElementById('qrcode');
     
     const btnCopyRoom = document.getElementById('btn-copy-room');
+    const btnRefreshQr = document.getElementById('btn-refresh-qr');
     const btnClearLog = document.getElementById('btn-clear-log');
     const btnTestInject = document.getElementById('btn-test-inject');
     
@@ -59,6 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
         injectTextLocal('Moboard test paste completed successfully. [Test]', {
             successMessage: 'Paste automation test succeeded'
         });
+    });
+
+    // 5-bis: Refresh QR code (regenerate pairing session)
+    btnRefreshQr.addEventListener('click', () => {
+        refreshPairingSession();
     });
 
     // 5. Clear Log Button
@@ -113,17 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Hash public IP into a 6-character room code
                 const code = hashIP(ip);
-                peerId = `${DESKTOP_PEER_PREFIX}-${code}`;
-                txtRoomId.textContent = code;
-                
-                initializePeer(peerId, code);
+                startPairingSession(code);
             })
             .catch(err => {
                 console.error('[Desktop] Failed to fetch public IP, generating random room ID:', err);
                 const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                peerId = `${DESKTOP_PEER_PREFIX}-${randomCode}`;
-                txtRoomId.textContent = randomCode;
-                initializePeer(peerId, randomCode);
+                startPairingSession(randomCode);
             });
     }
 
@@ -135,6 +136,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Convert to base 36 and take 6 characters
         return Math.abs(hash).toString(36).substring(0, 6).toUpperCase();
+    }
+
+    function randomRoomCode() {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    function startPairingSession(code) {
+        peerId = `${DESKTOP_PEER_PREFIX}-${code}`;
+        txtRoomId.textContent = code;
+        initializePeer(peerId, code);
+    }
+
+    function refreshPairingSession() {
+        if (conn) {
+            try {
+                conn.close();
+            } catch (err) {
+                console.warn('[Desktop] Failed to close existing connection:', err);
+            }
+            conn = null;
+        }
+
+        if (peer) {
+            try {
+                peer.destroy();
+            } catch (err) {
+                console.warn('[Desktop] Failed to destroy existing peer:', err);
+            }
+            peer = null;
+        }
+
+        showToast('Refreshing pairing QR code...');
+        updateConnectionStatus('waiting');
+        startPairingSession(randomRoomCode());
     }
 
     function initializePeer(id, code) {

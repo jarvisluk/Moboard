@@ -10,6 +10,7 @@
     "build:mobile-pages": "node scripts/build-mobile-pages.js",
     "dist": "electron-builder --mac",
     "dist:mac": "electron-builder --mac",
+    "dist:mac:signed": "macos-signed bash scripts/dist-mac-signed.sh",
     "deploy:cloudflare:create": "wrangler pages project create moboard --production-branch=main",
     "deploy:cloudflare": "npm run build:mobile-pages && wrangler pages deploy dist-pages --project-name=moboard",
     "release:tag": "bash scripts/release.sh"
@@ -37,7 +38,7 @@
       "node_modules/**/*"
     ],
     "mac": {
-      "identity": null,
+      "hardenedRuntime": true,
       "icon": "assets/app-icon.icns",
       "category": "public.app-category.utilities",
       "extendInfo": {
