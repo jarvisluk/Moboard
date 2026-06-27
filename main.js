@@ -5,6 +5,10 @@ const APP_NAME = 'Moboard';
 let mainWindow = null;
 let isQuitting = false;
 
+function getAppIconPath() {
+    return path.join(__dirname, 'public', 'favicon.png');
+}
+
 // 1. Boot up the local Express server inside the Electron app
 const serverRuntime = require('./server.js');
 
@@ -19,7 +23,7 @@ function createWindow(serverPort = serverRuntime.getPort()) {
         minHeight: 600,
         title: `${APP_NAME} Control Panel`,
         backgroundColor: '#0a0915', // Matches --bg-primary
-        icon: path.join(__dirname, 'public', 'favicon.png'),
+        icon: getAppIconPath(),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -80,6 +84,10 @@ function createWindow(serverPort = serverRuntime.getPort()) {
 // 5. App Lifecycle Listeners
 app.whenReady().then(async () => {
     app.setName(APP_NAME);
+    if (process.platform === 'darwin') {
+        app.dock.setIcon(getAppIconPath());
+    }
+
     const { port } = await serverRuntime.ready;
     createWindow(port);
 
