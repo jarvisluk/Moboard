@@ -9,6 +9,13 @@ const path = require('path');
  */
 exports.default = async function afterSign(context) {
     const { appOutDir, packager } = context;
+    const electronPlatformName = context.electronPlatformName || process.platform;
+
+    if (electronPlatformName !== 'darwin') {
+        console.log(`[afterSign] Skipping macOS ad-hoc signing for ${electronPlatformName}.`);
+        return;
+    }
+
     const appName = packager.appInfo.productFilename;
     const appPath = path.join(appOutDir, `${appName}.app`);
 

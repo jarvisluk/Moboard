@@ -1,17 +1,17 @@
 # Moboard User Guide
 
-Moboard is a cross-device voice dictation keyboard. Open the desktop app on your Mac, speak or type on your phone, and Moboard sends the text to the current cursor position on your Mac.
+Moboard is a cross-device voice dictation keyboard. Open the desktop app on your Mac or Windows PC, speak or type on your phone, and Moboard sends the text to the current cursor position on your computer.
 
 ## Requirements
 
-- A Mac running the Moboard desktop app.
+- A Mac or Windows PC running the Moboard desktop app.
 - A phone with a modern browser that supports microphone and camera permissions.
 - Internet access on both devices. Moboard uses a browser-based connection between the phone and desktop app.
-- macOS Accessibility and Automation permissions may be required for automatic paste.
+- macOS Accessibility and Automation permissions may be required for automatic paste on Mac.
 
 ## Quick Start
 
-1. Open Moboard on your Mac.
+1. Open Moboard on your computer.
 2. Wait for the desktop app to show `Active (Ready)` or a pairing screen.
 3. On your phone, open:
 
@@ -19,9 +19,9 @@ Moboard is a cross-device voice dictation keyboard. Open the desktop app on your
    https://moboard.pages.dev/
    ```
 
-4. Scan the pairing code from the desktop app, or enter the 6-character Room Code shown on the Mac.
+4. Scan the pairing code from the desktop app, or enter the 6-character Room Code shown on the computer.
 5. When the phone shows `Connected`, choose a recognition language and tap the microphone.
-6. Dictated or typed text is sent to the Mac and pasted at the current cursor position.
+6. Dictated or typed text is sent to the computer and pasted at the current cursor position.
 
 ## Security Notes
 
@@ -41,7 +41,7 @@ To reduce risk:
 
 ## Use the Desktop App
 
-The desktop app receives text from the phone and pastes it into the active Mac app.
+The desktop app receives text from the phone and pastes it into the active desktop app.
 
 - `Device Pairing` shows the pairing code and Room Code.
 - `Refresh QR Code` creates a new pairing session. Use it when a connection fails or the old code may have been exposed.
@@ -62,24 +62,26 @@ After connecting, the phone shows a text box, microphone button, language select
 - `Clear Text` clears the phone text box.
 - The language selector supports Mandarin, English, Cantonese, and Japanese.
 
-## macOS Permissions
+## Desktop Permissions
 
-If Moboard receives text but cannot paste automatically, macOS permissions are usually missing.
+On Windows, automatic paste uses the clipboard and `Ctrl+V`. Keep the target app focused before sending text. Some security tools or restricted desktop sessions may block simulated key presses.
+
+On macOS, if Moboard receives text but cannot paste automatically, Accessibility or Automation permissions are usually missing.
 
 1. Click `Test Paste Automation` in the desktop app.
 2. If macOS opens privacy settings, allow Moboard.
-3. Check these locations:
+3. On macOS, check these locations:
    - `Privacy & Security` -> `Accessibility`
    - `Privacy & Security` -> `Automation`
 4. Restart Moboard and run `Test Paste Automation` again.
 
-If you started Moboard from a terminal, macOS may show the permission under Terminal, your shell app, or Electron instead of Moboard.
+If you started Moboard from a terminal on macOS, the permission may appear under Terminal, your shell app, or Electron instead of Moboard.
 
 ## Troubleshooting
 
-### The phone cannot connect to the Mac
+### The phone cannot connect to the computer
 
-- Make sure Moboard is running on the Mac and the desktop app shows a pairing code or Room Code.
+- Make sure Moboard is running on the computer and the desktop app shows a pairing code or Room Code.
 - Click `Refresh QR Code` on the desktop app, then try pairing again.
 - If scanning fails, enter the 6-character Room Code manually.
 - Confirm the phone browser can open `https://moboard.pages.dev/`.
@@ -101,8 +103,8 @@ If you started Moboard from a terminal, macOS may show the permission under Term
 
 - Click the target input field first so the cursor is active.
 - Turn on `Auto-Paste to Cursor` in the desktop app.
-- Click `Test Paste Automation` to check macOS Accessibility and Automation permissions.
-- If permission still fails, Moboard may copy the text to the clipboard so you can paste manually with Command+V.
+- Click `Test Paste Automation` to check desktop paste automation. On macOS, also check Accessibility and Automation permissions.
+- If permission still fails, Moboard may copy the text to the clipboard so you can paste manually with Command+V on macOS or Ctrl+V on Windows.
 
 ## Data and Limits
 

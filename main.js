@@ -6,9 +6,11 @@ let mainWindow = null;
 let isQuitting = false;
 
 // 1. Boot up the local Express server inside the Electron app
-require('./server.js');
+const serverRuntime = require('./server.js');
 
-function createWindow() {
+function createWindow(serverPort = serverRuntime.getPort()) {
+    const isMac = process.platform === 'darwin';
+
     // 2. Create the browser window
     mainWindow = new BrowserWindow({
         width: 960,
@@ -27,16 +29,16 @@ function createWindow() {
     });
 
     // 3. Load the local Express server URL
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL(`http://localhost:${serverPort}`);
 
     // 4. Customize the Menu Bar (clean and minimal)
     const template = [
         {
-            label: 'Application',
+            label: isMac ? 'Application' : 'File',
             submenu: [
                 { label: `About ${APP_NAME}`, role: 'about' },
                 { type: 'separator' },
-                { label: 'Quit', accelerator: 'Command+Q', click: () => { app.quit(); } }
+                { label: isMac ? 'Quit' : 'Exit', accelerator: 'CmdOrCtrl+Q', click: () => { app.quit(); } }
             ]
         },
         {
@@ -76,9 +78,10 @@ function createWindow() {
 }
 
 // 5. App Lifecycle Listeners
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     app.setName(APP_NAME);
-    createWindow();
+    const { port } = await serverRuntime.ready;
+    createWindow(port);
 
     app.on('activate', () => {
         if (!mainWindow || mainWindow.isDestroyed()) {

@@ -22,4 +22,4 @@ npm version "$release_type" -m "chore: release v%s"
 branch="$(git branch --show-current)"
 git push origin "$branch" --follow-tags
 
-echo "Pushed release tag. GitHub Actions will build the DMG and publish the GitHub Release."
+echo "Pushed release tag. GitHub Actions will build the desktop release assets and publish the GitHub Release."

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const { exec, execFile } = require('child_process');
 const path = require('path');
 const os = require('os');
@@ -20,10 +21,18 @@ process.on('uncaughtException', (err) => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const requestedPort = Number.parseInt(process.env.PORT || '3000', 10);
+const PORT = Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPort : 3000;
 const APP_NAME = 'Moboard';
 const ACCESSIBILITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 const AUTOMATION_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation';
+let activeServer = null;
+let resolveServerReady;
+let rejectServerReady;
+const serverReady = new Promise((resolve, reject) => {
+    resolveServerReady = resolve;
+    rejectServerReady = reject;
+});
 
 app.use(cors());
 app.use(express.json());
@@ -254,7 +263,7 @@ function getElectronClipboard() {
     try {
         return require('electron').clipboard;
     } catch (err) {
-        console.warn('[Mac Inject] Electron clipboard unavailable, falling back to pbcopy:', err.message || err);
+        console.warn('[Clipboard] Electron clipboard unavailable:', err.message || err);
         return null;
     }
 }
@@ -410,30 +419,86 @@ function injectMac(text, res) {
     });
 }
 
-// Windows Text Injection using PowerShell
-function injectWindows(text, res) {
-    // Escaping double quotes for PowerShell
-    const escapedText = text.replace(/"/g, '`"');
-    
-    // PowerShell script to save clipboard, set new text, press Ctrl+V, then restore clipboard
-    // Note: We run it in a single PowerShell command chain
-    const powershellCmd = `powershell -Command "
-        Add-Type -AssemblyName System.Windows.Forms;
-        $oldText = '';
-        if ([System.Windows.Forms.Clipboard]::ContainsText()) {
-            $oldText = [System.Windows.Forms.Clipboard]::GetText();
-        }
-        [System.Windows.Forms.Clipboard]::SetText(\\"${escapedText}\\");
-        [System.Windows.Forms.SendKeys]::SendWait('^v');
-        Start-Sleep -Milliseconds 250;
-        if ($oldText -ne '') {
-            [System.Windows.Forms.Clipboard]::SetText($oldText);
-        } else {
-            [System.Windows.Forms.Clipboard]::Clear();
-        }
-    "`;
+function getWindowsPowerShellPath() {
+    if (process.env.SystemRoot) {
+        return path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    }
 
-    exec(powershellCmd, (err) => {
+    return 'powershell.exe';
+}
+
+function runWindowsPowerShell(script, options, callback) {
+    const execOptions = {
+        windowsHide: true,
+        maxBuffer: 1024 * 1024,
+        env: {
+            ...process.env,
+            ...(options.env || {})
+        }
+    };
+
+    execFile(
+        getWindowsPowerShellPath(),
+        ['-NoProfile', '-Sta', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+        execOptions,
+        (err, stdout, stderr) => {
+            if (typeof options.cleanup === 'function') {
+                try {
+                    options.cleanup();
+                } catch (cleanupErr) {
+                    console.error('[Win PowerShell] Cleanup failed:', cleanupErr.message || cleanupErr);
+                }
+            }
+
+            if (err && stderr) {
+                err.message = `${err.message}\n${stderr.trim()}`;
+            }
+
+            callback(err, stdout, stderr);
+        }
+    );
+}
+
+function createWindowsTextFile(text) {
+    const fileName = `moboard-clipboard-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
+    const filePath = path.join(os.tmpdir(), fileName);
+    fs.writeFileSync(filePath, text, 'utf8');
+    return filePath;
+}
+
+// Windows Text Injection using PowerShell without interpolating user text into the command line
+function injectWindows(text, res) {
+    let textFile;
+    try {
+        textFile = createWindowsTextFile(text);
+    } catch (err) {
+        console.error('[Win Inject] Failed to write temporary text file:', err.message || err);
+        return res.status(500).json({ success: false, error: 'Failed to prepare text for Windows paste' });
+    }
+
+    const script = `
+        $ErrorActionPreference = 'Stop'
+        Add-Type -AssemblyName System.Windows.Forms
+        $newText = [System.IO.File]::ReadAllText($env:MOBOARD_TEXT_FILE, [System.Text.Encoding]::UTF8)
+        $hadText = [System.Windows.Forms.Clipboard]::ContainsText()
+        $oldText = ''
+        if ($hadText) {
+            $oldText = [System.Windows.Forms.Clipboard]::GetText()
+        }
+        [System.Windows.Forms.Clipboard]::SetText($newText)
+        [System.Windows.Forms.SendKeys]::SendWait('^v')
+        Start-Sleep -Milliseconds 250
+        if ($hadText) {
+            [System.Windows.Forms.Clipboard]::SetText($oldText)
+        } else {
+            [System.Windows.Forms.Clipboard]::Clear()
+        }
+    `;
+
+    runWindowsPowerShell(script, {
+        env: { MOBOARD_TEXT_FILE: textFile },
+        cleanup: () => fs.rmSync(textFile, { force: true })
+    }, (err) => {
         if (err) {
             console.error('[Win Inject] PowerShell command failed:', err);
             return res.status(500).json({ success: false, error: 'PowerShell paste simulation failed' });
@@ -448,12 +513,13 @@ function pressWindowsKey(key, res) {
         return res.status(400).json({ success: false, error: 'Unsupported key' });
     }
 
-    const powershellCmd = `powershell -Command "
-        Add-Type -AssemblyName System.Windows.Forms;
-        [System.Windows.Forms.SendKeys]::SendWait('${sendKey}');
-    "`;
+    const script = `
+        $ErrorActionPreference = 'Stop'
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.SendKeys]::SendWait('${sendKey}')
+    `;
 
-    exec(powershellCmd, (err) => {
+    runWindowsPowerShell(script, {}, (err) => {
         if (err) {
             console.error('[Win Key] PowerShell command failed:', err);
             return res.status(500).json({ success: false, error: 'PowerShell key simulation failed' });
@@ -509,6 +575,13 @@ function startServer(port) {
 
         // Expose the actual port globally so other parts of the app can read it
         global.SERVER_PORT = port;
+        activeServer = server;
+
+        if (resolveServerReady) {
+            resolveServerReady({ port, server });
+            resolveServerReady = null;
+            rejectServerReady = null;
+        }
     });
 
     server.on('error', (err) => {
@@ -517,6 +590,11 @@ function startServer(port) {
             startServer(port + 1);
         } else {
             console.error('[Server] Failed to start:', err);
+            if (rejectServerReady) {
+                rejectServerReady(err);
+                resolveServerReady = null;
+                rejectServerReady = null;
+            }
             throw err;
         }
     });
@@ -524,4 +602,12 @@ function startServer(port) {
     return server;
 }
 
-startServer(PORT);
+const server = startServer(PORT);
+
+module.exports = {
+    app,
+    server,
+    ready: serverReady,
+    getPort: () => global.SERVER_PORT || PORT,
+    getServer: () => activeServer
+};
